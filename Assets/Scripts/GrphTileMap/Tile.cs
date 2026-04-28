@@ -27,7 +27,7 @@ public class Tile
         fowTileId = 0;
         for(int i = 0; i < adjacents.Length; i++)
         {
-            if (adjacents[i] != null && adjacents[i].isVisited)
+            if (adjacents[i] == null || !adjacents[i].isVisited)
             {
                 fowTileId |= (1 << i);
             }

@@ -132,7 +132,9 @@ public class Stage : MonoBehaviour
         }
         else
         {
+            Debug.Log("UpdateFowAutoTileId 호출됨");
             tile.UpdateFowAutoTileId();
+            Debug.Log($"tileId:{tileId} fowTileId:{tile.fowTileId}");
             ren.sprite = FowSprites[tile.fowTileId];
         }
     }
