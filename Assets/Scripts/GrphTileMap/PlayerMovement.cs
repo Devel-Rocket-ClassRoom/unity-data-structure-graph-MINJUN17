@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,6 +6,9 @@ public class PlayerMovement : MonoBehaviour
 {
     private Stage stage;
     private Animator animator;
+
+    private bool isMoving = false;
+    public float moveSpeed = 15f;
 
     private int currentTileId; // 올라와 있는 타일
 
@@ -19,6 +23,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        if (isMoving) return;
         var h = Input.GetAxisRaw("Horizontal");
         var v = Input.GetAxisRaw("Vertical");
 
@@ -56,9 +61,35 @@ public class PlayerMovement : MonoBehaviour
     public void MoveTo(int tileId)
     {
         currentTileId = tileId;
+        StartCoroutine(MoveCoroutine(stage.GetTilePos(currentTileId)));
+        RevealTiles(tileId, 3);
+    }
+    public void MoveToStart(int tileId)
+    {
+        currentTileId = tileId;
         transform.position = stage.GetTilePos(currentTileId);
         RevealTiles(tileId, 3);
     }
+    private IEnumerator MoveCoroutine(Vector3 targetPos)
+    {
+        isMoving = true;
+        animator.speed = 1f;
+
+        while (Vector3.Distance(transform.position, targetPos) > 0.01f)
+        {
+            transform.position = Vector3.MoveTowards(
+                transform.position,
+                targetPos,
+                moveSpeed * Time.deltaTime
+            );
+            yield return null;
+        }
+
+        transform.position = targetPos;
+        isMoving = false;
+        animator.speed = 0f;
+    }
+
     private void RevealTiles(int centerTileId, int range)
     {
         int centerRow = centerTileId / stage.mapWidth;
@@ -73,6 +104,19 @@ public class PlayerMovement : MonoBehaviour
                 int tileId = r * stage.mapWidth + c;
                 var tile = stage.Map.tiles[tileId];
                 tile.isVisited = true;
+                stage.DecorateTile(tileId);
+            }
+        }
+
+        for (int r = centerRow - range - 1; r <= centerRow + range + 1; r++)
+        {
+            for (int c = centerCol - range - 1; c <= centerCol + range + 1; c++)
+            {
+                if (r < 0 || r >= stage.mapHeight || c < 0 || c >= stage.mapWidth) continue;
+
+                int tileId = r * stage.mapWidth + c;
+                var tile = stage.Map.tiles[tileId];
+                tile.UpdateFowAutoTileId();
                 stage.DecorateTile(tileId);
             }
         }

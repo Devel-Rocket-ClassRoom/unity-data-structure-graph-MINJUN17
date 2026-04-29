@@ -72,7 +72,7 @@ public class Stage : MonoBehaviour
         map.Init(mapHeight, mapWidth);
         map.CreateIsland(erodePercent, erodeIterations, lakePercent, treePercent, hillPercent, mountainPercent, townPercent, monsterPercent);
         CreateGrid();
-        CreatePlayer();// 플레이어 기준으로 내가 설정한 만큼 맵 열기
+        CreatePlayer();
     }
 
     private void CreatePlayer()
@@ -82,7 +82,7 @@ public class Stage : MonoBehaviour
             Destroy(player.gameObject);
         }
         player = Instantiate(playerPrefab);
-        player.MoveTo(map.startTile.id);
+        player.MoveToStart(map.startTile.id);
     }
 
     private void CreateGrid()
@@ -114,7 +114,7 @@ public class Stage : MonoBehaviour
         }
     }
 
-    public void DecorateTile(int tileId)// 방문안한애들은 fow visted 정보를 가지고 island인지 fow인지
+    public void DecorateTile(int tileId)
     {
         var tile = map.tiles[tileId];
         var tileGo = tileObjs[tileId];
@@ -132,9 +132,7 @@ public class Stage : MonoBehaviour
         }
         else
         {
-            Debug.Log("UpdateFowAutoTileId 호출됨");
             tile.UpdateFowAutoTileId();
-            Debug.Log($"tileId:{tileId} fowTileId:{tile.fowTileId}");
             ren.sprite = FowSprites[tile.fowTileId];
         }
     }
