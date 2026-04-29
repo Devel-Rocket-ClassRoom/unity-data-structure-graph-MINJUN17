@@ -217,6 +217,7 @@ MonoBehaviour:
   - {fileID: 21300030, guid: dfa5f63634ba24c06a7c899467e4f9f3, type: 3}
   playerPrefab: {fileID: 3354808348240828099, guid: bfb44d76bcb11de40b72031296ef75a9, type: 3}
   player: {fileID: 0}
+  visitRadius: 2
 --- !u!1 &1171998895
 GameObject:
   m_ObjectHideFlags: 0

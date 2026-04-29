@@ -12,6 +12,15 @@ public enum Sides
 public class Tile
 {
     public int id;
+
+    public int Weight => tableWeight[autoTileId + 1];
+
+    public static readonly int[] tableWeight =
+    {
+        int.MaxValue,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        2,4, int.MaxValue,1,1,1,
+    };
     public Tile[] adjacents = new Tile[4];
 
     public int autoTileId;
@@ -19,13 +28,13 @@ public class Tile
     public int fowTileId;
 
     public bool isVisited = false;
+    public Tile previous = null;
+    public bool CanMove => Weight != int.MaxValue;
 
-    public bool CanMove => autoTileId != (int)TileTypes.Empty;
-
-    public void UpdateFowAutoTileId()
+    public void UpdateFowTileId()
     {
         fowTileId = 0;
-        for(int i = 0; i < adjacents.Length; i++)
+        for (int i = 0; i < adjacents.Length; i++)
         {
             if (adjacents[i] == null || !adjacents[i].isVisited)
             {
@@ -33,7 +42,10 @@ public class Tile
             }
         }
     }
-
+    public void ClearPreviousTile()
+    {
+        previous = null;
+    }
     public void UpdateAutoTileId()
     {
         autoTileId = 0;
@@ -45,6 +57,7 @@ public class Tile
             }
         }
     }
+
     public void RemoveAdjacents(Tile tile)
     {
         for (int i = 0; i < adjacents.Length; i++)
@@ -57,7 +70,6 @@ public class Tile
             {
                 adjacents[i] = null;
                 UpdateAutoTileId();
-                UpdateFowAutoTileId();
                 break;
             }
         }
@@ -65,6 +77,7 @@ public class Tile
 
     public void ClearAdjacents()
     {
+        autoTileId = (int)TileTypes.Empty;
         for (int i = 0; i < adjacents.Length; i++)
         {
             if (adjacents[i] == null)
@@ -75,6 +88,5 @@ public class Tile
             adjacents[i] = null;
         }
         UpdateAutoTileId();
-        UpdateFowAutoTileId();
     }
 }

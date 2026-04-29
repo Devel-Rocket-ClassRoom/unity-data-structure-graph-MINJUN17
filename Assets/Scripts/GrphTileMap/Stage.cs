@@ -1,9 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Stage : MonoBehaviour
 {
     public GameObject tilePrefabs;
     private GameObject[] tileObjs;
+
+    public List<Tile> path = new List<Tile>();
 
     public int mapWidth = 20;
     public int mapHeight = 20;
@@ -43,8 +46,8 @@ public class Stage : MonoBehaviour
     private Map map;
     public Map Map => map;
 
-    public PlayerMovement playerPrefab;
-    public PlayerMovement player;
+    public PlayerMovemnet playerPrefab;
+    public PlayerMovemnet player;
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
@@ -70,11 +73,29 @@ public class Stage : MonoBehaviour
     {
         map = new Map();
         map.Init(mapHeight, mapWidth);
-        map.CreateIsland(erodePercent, erodeIterations, lakePercent, treePercent, hillPercent, mountainPercent, townPercent, monsterPercent);
+        bool success;
+        do
+        {
+            success = map.CreateIsland(erodePercent, erodeIterations, lakePercent, treePercent, hillPercent, mountainPercent, townPercent, monsterPercent);
+        } 
+        while (!success);
+
         CreateGrid();
+        DrawPath(map.PathFindingAStar(map.startTile, map.castleTile));
         CreatePlayer();
     }
-
+    public void DrawPath(List<Tile> path)
+    {
+        foreach (var tile in tileObjs)
+        {
+            tile.GetComponent<SpriteRenderer>().color = Color.white;
+        }
+        for (int i = 0; i < path.Count; i++)
+        {
+            float t = (float)i / (path.Count - 1);
+            tileObjs[path[i].id].GetComponent<SpriteRenderer>().color = Color.Lerp(Color.green, Color.red, t);
+        }
+    }
     private void CreatePlayer()
     {
         if (player != null)
@@ -82,7 +103,7 @@ public class Stage : MonoBehaviour
             Destroy(player.gameObject);
         }
         player = Instantiate(playerPrefab);
-        player.MoveToStart(map.startTile.id);
+        player.Warp(map.startTile.id);
     }
 
     private void CreateGrid()
@@ -132,8 +153,53 @@ public class Stage : MonoBehaviour
         }
         else
         {
-            tile.UpdateFowAutoTileId();
             ren.sprite = FowSprites[tile.fowTileId];
+        }
+    }
+
+    public int visitRadius = 1;
+    public void OnTileVisited(int id)
+    {
+        OnTileVisited(map.tiles[id]);
+    }
+    public void OnTileVisited(Tile tile)
+    {
+        int centerX = tile.id % mapWidth;
+        int centerY = tile.id / mapWidth;
+
+        for (int i = -visitRadius; i <= visitRadius; ++i)
+        {
+            for (int j = -visitRadius; j <= visitRadius; ++j)
+            {
+                int x = centerX + j;
+                int y = centerY + i;
+                if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight)
+                {
+                    continue;
+                }
+                int id = y * mapWidth + x;
+                map.tiles[id].isVisited = true;
+                DecorateTile(id);
+            }
+        }
+        var radius = visitRadius + 1;
+        for (int i = -radius; i <= radius; ++i)
+        {
+            for (int j = -radius; j <= radius; ++j)
+            {
+                if (i == radius || i == -radius || j == radius || j == -radius)
+                {
+                    int x = centerX + j;
+                    int y = centerY + i;
+                    if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight)
+                    {
+                        continue;
+                    }
+                    int id = y * mapWidth + x;
+                    map.tiles[id].UpdateFowTileId();
+                    DecorateTile(id);
+                }
+            }
         }
     }
 

@@ -1,16 +1,18 @@
 using System.Collections;
-using System.Collections.Generic;
+using UnityEditor.Rendering;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerMovemnet : MonoBehaviour
 {
     private Stage stage;
     private Animator animator;
+    private int currentTileId = -1;
+    private int targetTileId = -1;
 
+    public float moveSpeed = 10f;
     private bool isMoving = false;
-    public float moveSpeed = 15f;
+    private Coroutine coMove = null;
 
-    private int currentTileId; // 올라와 있는 타일
 
     private void Awake()
     {
@@ -23,103 +25,92 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        if (isMoving) return;
-        var h = Input.GetAxisRaw("Horizontal");
-        var v = Input.GetAxisRaw("Vertical");
-
-        var direction = Sides.None;
-        if (Input.GetKeyDown(KeyCode.W))
+        if (Input.GetMouseButtonDown(0))
         {
-            direction = Sides.Top;
-        }
-        else if (Input.GetKeyDown(KeyCode.S))
-        {
-            direction = Sides.Bottom;
-
-        }
-        else if (Input.GetKeyDown(KeyCode.D))
-        {
-            direction = Sides.Right;
-
-        }
-        else if (Input.GetKeyDown(KeyCode.A))
-        {
-            direction = Sides.Left;
-        }
-        if (direction != Sides.None)
-        {
-            var targetTile = stage.Map.tiles[currentTileId].adjacents[(int)direction];
+            var clickTileId = stage.ScreenPosToTileId(Input.mousePosition);
+            var targetTile = stage.Map.tiles[clickTileId];
             if (targetTile != null && targetTile.CanMove)
             {
                 MoveTo(targetTile.id);
             }
         }
+    }
 
+    public void Warp(int tileId)
+    {
+        if (coMove != null)
+        {
+            StopCoroutine(coMove);
+            coMove = null;
+        }
+        isMoving = false;
+        targetTileId = -1;
 
+        animator.speed = 0f;
+        currentTileId = tileId;
+        transform.position = stage.GetTilePos(currentTileId);
+        stage.OnTileVisited(currentTileId);
     }
 
     public void MoveTo(int tileId)
     {
-        currentTileId = tileId;
-        StartCoroutine(MoveCoroutine(stage.GetTilePos(currentTileId)));
-        RevealTiles(tileId, 3);
+        targetTileId = tileId;
+        if (!isMoving)
+        {
+            coMove = StartCoroutine(CoMove());
+        }
     }
-    public void MoveToStart(int tileId)
-    {
-        currentTileId = tileId;
-        transform.position = stage.GetTilePos(currentTileId);
-        RevealTiles(tileId, 3);
-    }
-    private IEnumerator MoveCoroutine(Vector3 targetPos)
+
+    private IEnumerator CoMove()
     {
         isMoving = true;
         animator.speed = 1f;
-
-        while (Vector3.Distance(transform.position, targetPos) > 0.01f)
+        int currentTargetTileId = targetTileId;
+        var path = stage.Map.PathFindingAStar(currentTileId, currentTargetTileId);
+        if (path.Count == 0)
         {
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                targetPos,
-                moveSpeed * Time.deltaTime
-            );
-            yield return null;
+            isMoving = false;
+            animator.speed = 0f;
+            coMove = null;
+            yield break;
+        }
+        stage.DrawPath(path);
+        var pathIndex = 1;
+        while (pathIndex < path.Count)
+        {
+            if (currentTargetTileId != targetTileId)
+            {
+                currentTargetTileId = targetTileId;
+                path = stage.Map.PathFindingAStar(currentTileId, currentTargetTileId);
+                if (path.Count == 0)
+                {
+                    isMoving = false;
+                    animator.speed = 0f;
+                    coMove = null;
+                    yield break;
+                }
+                stage.DrawPath(path);
+                pathIndex = 1;
+            }
+            var startPos = transform.position;
+            var endPos = stage.GetTilePos(path[pathIndex].id);
+            var duration = Vector3.Distance(startPos, endPos) / moveSpeed;
+            var t = 0f;
+
+            while (t < 1f)
+            {
+                t += Time.deltaTime / duration;
+                transform.position = Vector3.Lerp(startPos, endPos, t);
+                yield return null;
+            }
+            transform.position = endPos;
+            currentTileId = path[pathIndex].id;
+            stage.OnTileVisited(currentTileId);
+            ++pathIndex;
         }
 
-        transform.position = targetPos;
-        isMoving = false;
         animator.speed = 0f;
+        isMoving = false;
+        coMove = null;
     }
-
-    private void RevealTiles(int centerTileId, int range)
-    {
-        int centerRow = centerTileId / stage.mapWidth;
-        int centerCol = centerTileId % stage.mapWidth;
-
-        for (int r = centerRow - range; r <= centerRow + range; r++)
-        {
-            for (int c = centerCol - range; c <= centerCol + range; c++)
-            {
-                if (r < 0 || r >= stage.mapHeight || c < 0 || c >= stage.mapWidth) continue;
-
-                int tileId = r * stage.mapWidth + c;
-                var tile = stage.Map.tiles[tileId];
-                tile.isVisited = true;
-                stage.DecorateTile(tileId);
-            }
-        }
-
-        for (int r = centerRow - range - 1; r <= centerRow + range + 1; r++)
-        {
-            for (int c = centerCol - range - 1; c <= centerCol + range + 1; c++)
-            {
-                if (r < 0 || r >= stage.mapHeight || c < 0 || c >= stage.mapWidth) continue;
-
-                int tileId = r * stage.mapWidth + c;
-                var tile = stage.Map.tiles[tileId];
-                tile.UpdateFowAutoTileId();
-                stage.DecorateTile(tileId);
-            }
-        }
-    }
-
 }

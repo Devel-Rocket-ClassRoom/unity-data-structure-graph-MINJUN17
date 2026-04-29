@@ -1,5 +1,7 @@
-using UnityEngine;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using UnityEngine;
 
 public enum TileTypes
 {
@@ -11,7 +13,6 @@ public enum TileTypes
     Towns,
     Castle,
     Monster,
-    lake,
 }
 public class Map
 {
@@ -66,9 +67,10 @@ public class Map
         for (int i = 0; i < tiles.Length; i++)
         {
             tiles[i].UpdateAutoTileId();
-            tiles[i].UpdateFowAutoTileId();
+            tiles[i].UpdateFowTileId();
         }
     }
+    
     public void ShuffleTiles(Tile[] tiles)
     {
         for (int i = tiles.Length - 1; i >= 0; --i)
@@ -116,6 +118,85 @@ public class Map
         startTile = towns[0];
         castleTile = towns[1];
         castleTile.autoTileId = (int)TileTypes.Castle;
-        return true;
+        
+        var path = PathFindingAStar(startTile, castleTile);
+        return path.Count > 0;
+    }
+    public List<Tile> PathFindingAStar(int startTile, int endTile)
+    {
+        return PathFindingAStar(tiles[startTile], tiles[endTile]);
+    }
+
+    public List<Tile> PathFindingAStar(Tile startTile, Tile endTile)
+    {
+        List<Tile> path = new List<Tile>();
+        path.Clear();
+        foreach(Tile tile in tiles)
+        {
+            tile.ClearPreviousTile();
+        }
+        var visited = new HashSet<Tile>();
+        var pqueue = new PriorityQueue<Tile, int>();
+        var distances = new int[tiles.Length];
+
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            distances[i] = int.MaxValue;
+        }
+
+        distances[startTile.id] = 0;
+        pqueue.Enqueue(startTile, Heuristic(startTile, endTile));
+
+        while (pqueue.Count > 0)
+        {
+            var current = pqueue.Dequeue();
+            if (visited.Contains(current))
+            {
+                continue;
+            }
+            visited.Add(current);
+            if (current == endTile)
+            {
+                break;
+            }
+
+            for (int i = 0; i < current.adjacents.Length; i++)
+            {
+                var adj = current.adjacents[i];
+                if (adj == null || !adj.CanMove || visited.Contains(adj))
+                {
+                    continue;
+                }
+                if (distances[current.id] == int.MaxValue)
+                {
+                    continue;
+                }
+                int newDist = distances[current.id] + adj.Weight;
+
+                if (newDist < distances[adj.id])
+                {
+                    tiles[adj.id].previous = current;
+                    distances[adj.id] = newDist;
+                    pqueue.Enqueue(adj, newDist + Heuristic(adj, endTile));
+                }
+            }
+        }
+        var temp = endTile;
+        while (temp != null)
+        {
+            path.Add(temp);
+            temp = tiles[temp.id].previous;
+        }
+        path.Reverse();
+        return path;
+    }
+
+    private int Heuristic(Tile a, Tile b)
+    {
+        int ax = a.id % cols;
+        int ay = a.id / cols;
+        int bx = b.id % cols;
+        int by = b.id / cols;
+        return Mathf.Abs(ax - bx) + Mathf.Abs(ay - by); // 맨하탄 거리
     }
 }
